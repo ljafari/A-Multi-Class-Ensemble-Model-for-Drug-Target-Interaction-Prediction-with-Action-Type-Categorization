@@ -1,0 +1,44 @@
+# author: leila Jafari Khouzani
+print:   'both'   
+in_dir : 'dataset' 
+out_dir: 'results'    
+task:    'train'   
+edge_type : 'target'
+cfg_dest :   'evaluate_classifiers.yaml' 
+    
+dataset: 
+    DrugDiscriptors:  'DrugDiscriptors.csv' 
+    ProteinFeatures: 'ProteinFeatures.csv'   
+    DTI:   'DTI.csv' 
+    DDS: 'DDS.tsv'
+    PPI: 'PPI.tsv'
+    zero_edges: 'zero_thr0.5.csv' 
+    drug_label:   'DrugID'
+    target_label:  'UniprotID'
+    ActionLabel: 'ActionLabel'    
+    pkl_file: 'data_partitions_concat.pkl'
+feature: 
+    DTCombine:  'concat'
+    reduce_method: 'pca'    
+    PCA_mode:  'full' #same valid    
+    max_n_components: 100
+    drug_n_components: 30  
+    target_n_components: 30     
+    
+model:        
+    task: 'classifier_evaluation'    
+    parallel: True
+    mol_type: 'Drug' # 'Target'
+    classifier: 'HGBoosting'
+    max_iter: 5000 
+    alpha: 0.01 
+    n_estimators: 100 
+    knn_neighbors: 5   
+    output_dim: 3  
+    epochs: 1000  
+    n_splits : 5 
+    test_size: 0.2
+    valid_size: 0.2
+    n_repeats: 20
+    random_state_seed: 'time'  
+    random_state: 'time'
