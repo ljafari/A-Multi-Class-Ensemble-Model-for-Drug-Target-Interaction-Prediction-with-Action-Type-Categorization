@@ -89,12 +89,17 @@ class HeteroGAT(nn.Module):
 # HGT for heterogeneous graphs
 # ---------------------------------------------
 class HeteroHGT(nn.Module):
-    def __init__(self, metadata, hidden_dim, out_dim, node_feature_dims):
+    def __init__(self, metadata, hidden_dim, out_dim, node_feature_dims, num_layers=3):
         super().__init__()
         self.input_proj = nn.ModuleDict()
         for node_type in metadata[0]:
             self.input_proj[node_type] = nn.Linear(node_feature_dims[node_type], hidden_dim)
-        self.conv1 = HGTConv(hidden_dim, hidden_dim, metadata)
+        # self.conv1 = HGTConv(hidden_dim, hidden_dim, metadata)
+        # MULTIPLE HGT layers
+        self.layers = nn.ModuleList([
+            HGTConv(hidden_dim, hidden_dim, metadata)
+            for _ in range(num_layers)
+        ])
         self.lin = nn.Linear(hidden_dim * 2, out_dim)
 
     def forward(self, x_dict, edge_index_dict, edge_label_index):
@@ -114,12 +119,23 @@ class HeteroHAN(nn.Module):
         self.input_proj = nn.ModuleDict()
         for node_type in metadata[0]:
             self.input_proj[node_type] = nn.Linear(node_feature_dims[node_type], hidden_dim)
-        self.conv1 = HANConv(hidden_dim, hidden_dim, metadata, heads=2)
+        
+        # HANConv automatically create metapaths from  graph       
+        self.conv1 = HANConv(hidden_dim, hidden_dim, metadata, heads=4)  
+        
+        # Add a second HAN layer for true hierarchical processing
+        self.conv2 = HANConv(hidden_dim, hidden_dim, metadata, heads=4)
+        
         self.lin = nn.Linear(hidden_dim * 2, out_dim)
 
     def forward(self, x_dict, edge_index_dict, edge_label_index):
+        # Project all node features into shared space
         x_dict = {node: self.input_proj[node](x) for node, x in x_dict.items()}
-        x_dict = self.conv1(x_dict, edge_index_dict)
+        
+        # Multiple HAN layers for hierarchical processing
+        x_dict = self.conv1(x_dict, edge_index_dict)  # First level attention
+        x_dict = self.conv2(x_dict, edge_index_dict)  # Second level attention
+        
         drug_emb = x_dict['drug'][edge_label_index[0]]
         prot_emb = x_dict['protein'][edge_label_index[1]]
         edge_emb = torch.cat([drug_emb, prot_emb], dim=1)
@@ -181,3 +197,4 @@ class GraphTransformerWrapper(nn.Module):
 
     def forward(self, data):
         return self.model(data.x, data.edge_index)
+
